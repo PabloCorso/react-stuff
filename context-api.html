@@ -62,7 +62,8 @@
       (...args) =>
         fns.forEach((fn) => fn && fn(...args));
 
-    function FilterPill({ getPillProps, onClick, children }) {
+    function FilterPill({ onClick, children }) {
+      const { getPillProps } = useFilter();
       const { onClick: handleClick } = getPillProps({ onClick });
       return (
         <div className="pill" onClick={handleClick}>
@@ -71,7 +72,8 @@
       );
     }
 
-    function FilterPopover({ getDialogProps, title, onConfirm, children }) {
+    function FilterPopover({ title, onConfirm, children }) {
+      const { getDialogProps } = useFilter();
       const { open, onConfirm: handleConfirm } = getDialogProps({ onConfirm });
       return (
         open && (
@@ -86,7 +88,8 @@
       );
     }
 
-    function FilterDialog({ getDialogProps, title, onConfirm, children }) {
+    function FilterDialog({ title, onConfirm, children }) {
+      const { getDialogProps } = useFilter();
       const { open, onConfirm: handleConfirm } = getDialogProps({ onConfirm });
       return (
         open && (
@@ -99,6 +102,17 @@
           </div>
         )
       );
+    }
+
+    const FilterContext = React.createContext();
+
+    function useFilter() {
+      const context = React.useContext(FilterContext);
+      if (!context) {
+        throw new Error("useFilter must be used within a <Filter>");
+      }
+
+      return context;
     }
 
     function Filter({ children }) {
@@ -115,13 +129,12 @@
         onClick: callAll(handleOpen, onClick),
       });
 
-      return React.Children.map(children, (child) =>
-        React.cloneElement(child, {
-          open,
-          setOpen,
-          getDialogProps,
-          getPillProps,
-        })
+      return (
+        <FilterContext.Provider
+          value={{ open, setOpen, getDialogProps, getPillProps }}
+        >
+          {children}
+        </FilterContext.Provider>
       );
     }
 
@@ -131,7 +144,9 @@
         const dialogProps = { title, children: children({ filter, index }) };
         return (
           <Filter key={index}>
-            <FilterPill>{pillName}</FilterPill>
+            <div>
+              <FilterPill>{pillName}</FilterPill>
+            </div>
             {variation === "dialog" ? (
               <FilterDialog {...dialogProps} />
             ) : (
