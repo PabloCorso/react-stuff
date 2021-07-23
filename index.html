@@ -1,0 +1,193 @@
+<body>
+  <style>
+    .pill {
+      display: inline-flex;
+      justify-content: center;
+      border: 1px solid black;
+      border-radius: 20px;
+      padding: 12px;
+      min-width: 64px;
+      cursor: pointer;
+      margin-right: 24px;
+    }
+    .box {
+      width: 200px;
+      height: 200px;
+      border: 1px solid black;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: absolute;
+      background-color: white;
+    }
+    .box__title {
+      margin-bottom: 24px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed black;
+      width: 100%;
+      text-align: center;
+    }
+    .box__footer {
+      align-self: flex-end;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 12px;
+    }
+    .field label {
+      margin-bottom: 8px;
+    }
+    .field input {
+      height: 24px;
+    }
+  </style>
+
+  <script
+    crossorigin
+    src="https://unpkg.com/react@17/umd/react.development.js"
+  ></script>
+  <script
+    crossorigin
+    src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"
+  ></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <div data-js="root"></div>
+
+  <script type="text/babel">
+    function FilterPill({ onClick, children }) {
+      return (
+        <div className="pill" onClick={onClick}>
+          {children}
+        </div>
+      );
+    }
+
+    function FilterPopover({ open, title, onConfirm, children }) {
+      return (
+        open && (
+          <div className="box">
+            <div>{title}</div>
+            <div>{children}</div>
+          </div>
+        )
+      );
+    }
+
+    function FilterDialog({ open, title, onConfirm, children }) {
+      return (
+        open && (
+          <div className="box">
+            <div className="box__title">{title}</div>
+            <div>{children}</div>
+            <div className="box__footer">
+              <button onClick={onConfirm}>Confirm</button>
+            </div>
+          </div>
+        )
+      );
+    }
+
+    function Filter({
+      title,
+      pillName = title,
+      variation = "dialog",
+      children,
+    }) {
+      const [open, setOpen] = React.useState(false);
+
+      const dialogProps = {
+        open: open,
+        title: title,
+        children,
+        onConfirm: () => setOpen(false),
+      };
+
+      const pillProps = { children: pillName, onClick: () => setOpen(true) };
+      return (
+        <>
+          <FilterPill {...pillProps} />
+          {variation === "dialog" ? (
+            <FilterDialog {...dialogProps} />
+          ) : (
+            <FilterPopover {...dialogProps} />
+          )}
+        </>
+      );
+    }
+
+    function FilterDisplayList({ filters, variation = "dialog", children }) {
+      return filters.map((filter, index) => {
+        const { pillName, title } = filter;
+        return (
+          <Filter
+            key={index}
+            pillName={pillName}
+            title={title}
+            variation={variation}
+          >
+            {children({ filter, index })}
+          </Filter>
+        );
+      });
+    }
+
+    function RangeFitlerDisplay({ filter }) {
+      const { label } = filter;
+      return (
+        <form>
+          <div className="field">
+            <label htmlFor="from" type="number">
+              {label} from
+            </label>
+            <input id="from" />
+          </div>
+          <div className="field">
+            <label htmlFor="to" type="number">
+              {label} to
+            </label>
+            <input id="to" />
+          </div>
+        </form>
+      );
+    }
+
+    function FilterDisplayFactory({ filter, index }) {
+      switch (filter.variation) {
+        case "range":
+          return <RangeFitlerDisplay filter={filter} />;
+        default:
+          throw new Error(`Filter variation ${filter.variation} doesn't exist`);
+      }
+    }
+
+    function App() {
+      const filters = [
+        {
+          variation: "range",
+          pillName: "Price",
+          title: "Filter price",
+          label: "Price",
+        },
+        {
+          variation: "range",
+          pillName: "Weight",
+          title: "Filter weight",
+          label: "Weight",
+        },
+      ];
+      return (
+        <div>
+          <FilterDisplayList filters={filters}>
+            {FilterDisplayFactory}
+          </FilterDisplayList>
+        </div>
+      );
+    }
+
+    const root = document.querySelector("[data-js=root]");
+    ReactDOM.render(<App />, root);
+  </script>
+</body>
