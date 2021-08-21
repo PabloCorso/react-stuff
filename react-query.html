@@ -1,0 +1,136 @@
+<body>
+  <style>
+    .container {
+      display: flex;
+      width: 500px;
+    }
+    .container section {
+      flex: 1;
+      margin: 24px;
+    }
+    .container section:first-child {
+      border-right: 1px dashed black;
+      padding: 12px;
+    }
+  </style>
+
+  <script
+    crossorigin
+    src="https://unpkg.com/react@17/umd/react.development.js"
+  ></script>
+  <script
+    crossorigin
+    src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"
+  ></script>
+  <script src="https://unpkg.com/react-query/dist/react-query.production.min.js"></script>
+  <script src="https://unpkg.com/faker@5.5.3/dist/faker.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <div data-js="root"></div>
+
+  <script type="text/babel">
+    const buildTodo = (overrides) => ({
+      id: faker.datatype.uuid(),
+      title: faker.random.words(),
+      ...overrides,
+    });
+
+    /** Start Api */
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const createApi = function (ms) {
+      return {
+        call: async function (method, url, data) {
+          console.info(`${method}: ${url}...`);
+          await sleep(ms);
+          return Promise.resolve(data);
+        },
+        get: function (url, data) {
+          return this.call("GET", url, data);
+        },
+        post: function (url, data) {
+          return this.call("POST", url, data);
+        },
+      };
+    };
+    const api = createApi(2000);
+
+    const dbTodos = new Array(2).fill(null).map((_) => buildTodo());
+
+    const getTodos = () => {
+      return api.get("/todos", dbTodos);
+    };
+
+    const postTodo = (todo) => {
+      dbTodos.push(todo);
+      return api.post("/todos", dbTodos);
+    };
+    /** End Api */
+
+    /** Start App */
+    function Todos() {
+      // Access the client
+      const queryClient = ReactQuery.useQueryClient();
+
+      // Queries
+      const query = ReactQuery.useQuery("todos", getTodos, {
+        refetchOnWindowFocus: false,
+      });
+
+      // Mutations
+      const mutation = ReactQuery.useMutation(postTodo, {
+        onSuccess: (data) => {
+          // Invalidate and refetch
+          // queryClient.invalidateQueries("todos");
+          queryClient.setQueryData("todos", data);
+        },
+      });
+
+      return (
+        <div className="container">
+          <section>
+            <button
+              onClick={() => {
+                mutation.mutate(buildTodo());
+              }}
+            >
+              Add Todo
+            </button>
+            <ul>
+              {query.data
+                ? query.data.map((todo) => <li key={todo.id}>{todo.title}</li>)
+                : null}
+            </ul>
+          </section>
+          <section>
+            <div>
+              <h3>Query:</h3>
+              <div>Status: {query.status}</div>
+              <div>{query.isLoading ? "Loading..." : null}</div>
+              <div>{query.isFetching ? "Fetching..." : null}</div>
+            </div>
+            <br />
+            <div>
+              <h3>Mutation:</h3>
+              <div>Status: {mutation.status}</div>
+              <div>{mutation.isLoading ? "Loading..." : null}</div>
+              <div>{mutation.isFetching ? "Fetching..." : null}</div>
+            </div>
+          </section>
+        </div>
+      );
+    }
+
+    const queryClient = new ReactQuery.QueryClient();
+    function App() {
+      return (
+        // Provide the client to your App
+        <ReactQuery.QueryClientProvider client={queryClient}>
+          <Todos />
+        </ReactQuery.QueryClientProvider>
+      );
+    }
+
+    const root = document.querySelector("[data-js=root]");
+    ReactDOM.render(<App />, root);
+  </script>
+</body>

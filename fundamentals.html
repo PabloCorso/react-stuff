@@ -1,0 +1,37 @@
+<body>
+  <style>
+    .message {
+      font-size: 32px;
+    }
+  </style>
+
+  <script
+    crossorigin
+    src="https://unpkg.com/react@17/umd/react.development.js"
+  ></script>
+  <script
+    crossorigin
+    src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"
+  ></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    function Message({ children }) {
+      return <div className="message">{children}</div>;
+    }
+
+    // Create element
+    const elements = (
+      <>
+        <Message>Hello World!</Message>
+        <Message>Goodbye World!</Message>
+      </>
+    );
+
+    // Render element
+    const root = document.getElementById("root");
+    ReactDOM.render(elements, root);
+  </script>
+</body>

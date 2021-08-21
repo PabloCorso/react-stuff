@@ -88,7 +88,7 @@
             <div className="box__title">{title}</div>
             <div>{children}</div>
             <div className="box__footer">
-              <button onClick={onConfirm}>Confirm</button>
+              <button onClick={handleConfirm}>Confirm</button>
             </div>
           </div>
         )
@@ -122,24 +122,37 @@
       return context;
     }
 
-    function Filter({ children }) {
-      const [open, setOpen] = React.useState(false);
+    const initialState = { open: false };
+    function filterReducer(state = initialState, action) {
+      switch (action.type) {
+        case "toggle":
+          return { ...state, open: action.open };
+        default:
+          throw new Error(`Unsupported action: ${action.type}`);
+      }
+    }
 
-      const handleClose = () => setOpen(false);
+    function useFilterLogic(reducer = filterReducer, initValue = initialState) {
+      const [{ open }, dispatch] = React.useReducer(reducer, initValue);
+
+      const handleClose = () => dispatch({ type: "toggle", open: false });
       const getDialogProps = ({ onConfirm } = {}) => ({
-        open: open,
+        open,
         onConfirm: callAll(handleClose, onConfirm),
       });
 
-      const handleOpen = () => setOpen(true);
+      const handleOpen = () => dispatch({ type: "toggle", open: true });
       const getPillProps = ({ onClick } = {}) => ({
         onClick: callAll(handleOpen, onClick),
       });
 
+      return { getDialogProps, getPillProps };
+    }
+
+    function Filter({ children }) {
+      const value = useFilterLogic();
       return (
-        <FilterContext.Provider
-          value={{ open, setOpen, getDialogProps, getPillProps }}
-        >
+        <FilterContext.Provider value={value}>
           {children}
         </FilterContext.Provider>
       );
@@ -151,9 +164,7 @@
         const dialogProps = { title, children: children({ filter, index }) };
         return (
           <Filter key={index}>
-            <div>
-              <FilterPill>{pillName}</FilterPill>
-            </div>
+            <FilterPill>{pillName}</FilterPill>
             {variation === "dialog" ? (
               <FilterDialog {...dialogProps} />
             ) : (

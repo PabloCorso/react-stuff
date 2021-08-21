@@ -1,0 +1,40 @@
+<body>
+  <script
+    crossorigin
+    src="https://unpkg.com/react@17/umd/react.development.js"
+  ></script>
+  <script
+    crossorigin
+    src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"
+  ></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <div data-js="root"></div>
+
+  <script type="text/babel">
+    function Welcome({ username }) {
+      return <div>Welcome {username}!</div>;
+    }
+
+    function DashboardContent({ children }) {
+      return children;
+    }
+
+    function Dashboard({ children }) {
+      return children;
+    }
+
+    function App() {
+      return (
+        <Dashboard>
+          <DashboardContent>
+            <Welcome username="Pepe" />
+          </DashboardContent>
+        </Dashboard>
+      );
+    }
+
+    const root = document.querySelector("[data-js=root]");
+    ReactDOM.render(<App />, root);
+  </script>
+</body>

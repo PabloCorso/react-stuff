@@ -31,6 +31,13 @@
     .box__footer {
       align-self: flex-end;
     }
+    .box--dialog {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      margin-left: -100px;
+      margin-top: -100px;
+    }
     .field {
       display: flex;
       flex-direction: column;
@@ -66,41 +73,40 @@
     }
 
     function FilterPopover({ open, title, onConfirm, children }) {
-      return (
-        open && (
-          <div className="box">
-            <div>{title}</div>
-            <div>{children}</div>
+      return open ? (
+        <div className="box">
+          <div className="box__title">{title}</div>
+          <div>{children}</div>
+          <div className="box__footer">
+            <button onClick={onConfirm}>Confirm</button>
           </div>
-        )
-      );
+        </div>
+      ) : null;
     }
 
     function FilterDialog({ open, title, onConfirm, children }) {
-      return (
-        open && (
-          <div className="box">
-            <div className="box__title">{title}</div>
-            <div>{children}</div>
-            <div className="box__footer">
-              <button onClick={onConfirm}>Confirm</button>
-            </div>
+      return open ? (
+        <div className="box box--dialog">
+          <div className="box__title">{title}</div>
+          <div>{children}</div>
+          <div className="box__footer">
+            <button onClick={onConfirm}>Confirm</button>
           </div>
-        )
-      );
+        </div>
+      ) : null;
     }
 
     function Filter({
       title,
       pillName = title,
-      variation = "dialog",
+      variation = "popover",
       children,
     }) {
       const [open, setOpen] = React.useState(false);
 
       const dialogProps = {
-        open: open,
-        title: title,
+        open,
+        title,
         children,
         onConfirm: () => setOpen(false),
       };
@@ -118,7 +124,7 @@
       );
     }
 
-    function FilterDisplayList({ filters, variation = "dialog", children }) {
+    function FilterDisplayList({ filters, variation = "popover", children }) {
       return filters.map((filter, index) => {
         const { pillName, title } = filter;
         return (

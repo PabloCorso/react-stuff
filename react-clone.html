@@ -31,6 +31,13 @@
     .box__footer {
       align-self: flex-end;
     }
+    .box--dialog {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      margin-left: -100px;
+      margin-top: -100px;
+    }
     .field {
       display: flex;
       flex-direction: column;
@@ -76,10 +83,10 @@
       return (
         open && (
           <div className="box">
-            <div>{title}</div>
+            <div className="box__title">{title}</div>
             <div>{children}</div>
             <div className="box__footer">
-              <button onClick={handleConfirm}>Confirm</button>
+              <button onClick={onConfirm}>Confirm</button>
             </div>
           </div>
         )
@@ -90,7 +97,7 @@
       const { open, onConfirm: handleConfirm } = getDialogProps({ onConfirm });
       return (
         open && (
-          <div className="box">
+          <div className="box box--dialog">
             <div className="box__title">{title}</div>
             <div>{children}</div>
             <div className="box__footer">
@@ -125,7 +132,7 @@
       );
     }
 
-    function FilterDisplayList({ filters, variation = "dialog", children }) {
+    function FilterDisplayList({ filters, variation = "popvover", children }) {
       return filters.map((filter, index) => {
         const { pillName, title } = filter;
         const dialogProps = { title, children: children({ filter, index }) };
