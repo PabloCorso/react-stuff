@@ -1,0 +1,322 @@
+<body>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+    * {
+      margin: 0;
+    }
+    html,
+    body {
+      height: 100%;
+    }
+    body {
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    input,
+    button,
+    textarea,
+    select {
+      font: inherit;
+    }
+    p,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      overflow-wrap: break-word;
+    }
+    h1 {
+      font-size: 1.5em;
+      margin-bottom: 8px;
+    }
+    h2 {
+      font-size: 1.25em;
+    }
+    input {
+      min-height: 32px;
+    }
+    .container {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+    .global-status-item {
+      height: 24px;
+    }
+    .form {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      max-width: 252px;
+    }
+    .form-label {
+      margin-bottom: 4px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .spinner {
+      font-size: 14px;
+      margin-left: 8px;
+    }
+    .hr {
+      height: 1px;
+      background-color: #e0e0e0;
+    }
+    .delays-info {
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+
+  <script
+    crossorigin
+    src="https://unpkg.com/react@17/umd/react.development.js"
+  ></script>
+  <script
+    crossorigin
+    src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"
+  ></script>
+  <script src="https://unpkg.com/react-query/dist/react-query.production.min.js"></script>
+  <script src="https://unpkg.com/react-query/dist/react-query-devtools.production.min.js"></script>
+  <script src="https://unpkg.com/faker@5.5.3/dist/faker.min.js"></script>
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.0.0-beta.64/dist/themes/light.css"
+  />
+  <script
+    type="module"
+    src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.0.0-beta.64/dist/shoelace.js"
+  ></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <div data-js="root"></div>
+
+  <script type="text/babel">
+    const apiDelay = 1000;
+    const mutationDelay = 300;
+
+    function debounceFn(func, wait, immediate) {
+      var timeout;
+      return function () {
+        var context = this,
+          args = arguments;
+        var later = function () {
+          timeout = null;
+          if (!immediate) func.apply(context, args);
+        };
+        var callNow = immediate && !timeout;
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+        if (callNow) func.apply(context, args);
+      };
+    }
+
+    const buildTodo = (overrides) => ({
+      id: faker.datatype.uuid(),
+      name: faker.random.words(1),
+      description: faker.random.words(5),
+      ...overrides,
+    });
+
+    /** Start Api */
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const createApi = function (ms) {
+      return {
+        call: async function (method, url, data) {
+          console.info(`${method}: ${url}...`);
+          await sleep(ms);
+          return Promise.resolve(data);
+        },
+        get: function (url, data) {
+          return this.call("GET", url, data);
+        },
+        post: function (url, data) {
+          return this.call("POST", url, data);
+        },
+      };
+    };
+    const api = createApi(apiDelay);
+
+    let dbTodo = buildTodo();
+
+    const getTodos = () => {
+      return api.get("/todo", dbTodo);
+    };
+
+    const postTodo = (todo) => {
+      dbTodo = todo;
+      return api.post("/todo", dbTodo);
+    };
+    /** End Api */
+
+    /** Start App */
+    function ErrorMessage({ error, ...props }) {
+      return (
+        <div role="alert" {...props}>
+          <span>There was an error: </span>
+          <pre>{error.message}</pre>
+        </div>
+      );
+    }
+
+    function Spinner() {
+      return <sl-spinner class="spinner" />;
+    }
+
+    function Hr() {
+      return <div className="hr" />;
+    }
+
+    function GlobalStatusItems({ name, value }) {
+      return (
+        <li className="global-status-item">
+          {name}:{" "}
+          {value && (
+            <>
+              {value} <Spinner />
+            </>
+          )}
+        </li>
+      );
+    }
+
+    function MutationFeedback({ error, isError, isLoading }) {
+      return (
+        <>
+          {isError ? <ErrorMessage error={error} /> : null}
+          {isLoading ? <Spinner /> : null}
+        </>
+      );
+    }
+
+    function Todos() {
+      // Access the client
+      const queryClient = ReactQuery.useQueryClient();
+
+      // Queries
+      const query = ReactQuery.useQuery("todo", getTodos);
+      const todo = query.data;
+
+      // Mutations
+      const mutation = ReactQuery.useMutation(postTodo, {
+        onSuccess: (data) => {
+          // Invalidate and refetch
+          // queryClient.invalidateQueries("todo");
+          queryClient.setQueryData("todo", data);
+        },
+      });
+
+      const debouncedMutate = React.useMemo(
+        () => debounceFn(mutation.mutate, mutationDelay),
+        [mutation.mutate]
+      );
+
+      const [lastAttrName, setLastAttrName] = React.useState("");
+      const handleTodoChange = (attrName) => (e) => {
+        setLastAttrName(attrName);
+        debouncedMutate({ ...todo, [attrName]: e.target.value });
+      };
+
+      const isFetching = ReactQuery.useIsFetching();
+      const isMutating = ReactQuery.useIsMutating();
+      return (
+        <div className="container">
+          <section>
+            <h2>Global states</h2>
+            <ul>
+              <GlobalStatusItems
+                name="Fetching"
+                value={isFetching || query.isFetching ? 1 : 0}
+              />
+              <GlobalStatusItems name="Updating" value={isMutating} />
+            </ul>
+          </section>
+          <Hr />
+          <section>
+            <h1>
+              Item info{(query.isLoading || mutation.isLoading) && <Spinner />}
+            </h1>
+            <form className="form">
+              <div className="form-group">
+                <div className="form-label">
+                  <label htmlFor="name">Name</label>
+                  {lastAttrName === "name" && (
+                    <MutationFeedback {...mutation} />
+                  )}
+                </div>
+                <input
+                  id="name"
+                  defaultValue={todo ? todo.name : ""}
+                  onChange={handleTodoChange("name")}
+                />
+              </div>
+              <div className="form-group">
+                <div className="form-label">
+                  <label htmlFor="description" className="form-label">
+                    Description
+                  </label>
+                  {lastAttrName === "description" && (
+                    <MutationFeedback {...mutation} />
+                  )}
+                </div>
+                <textarea
+                  id="description"
+                  defaultValue={todo ? todo.description : ""}
+                  onChange={handleTodoChange("description")}
+                />
+              </div>
+            </form>
+          </section>
+          <Hr />
+          <section className="delays-info">
+            <code>
+              Global states show when anything is being fetched or updated
+            </code>
+            <code>Fake API calls are delayed {apiDelay}ms</code>
+            <code>Input auto-save is delayed {mutationDelay}ms</code>
+            <code>
+              This reads:
+              <ul>
+                <li>Initial data load {apiDelay}ms</li>
+                <li>
+                  Input is changed and {mutationDelay}ms pass without more
+                  modifications
+                  <ul>
+                    <li>Udate data (API call {apiDelay}ms)</li>
+                    <li>Loading spinner appears while updating</li>
+                    <li>Data gets updated in sync with server</li>
+                    <li>Loading spinner dissapears</li>
+                  </ul>
+                </li>
+              </ul>
+            </code>
+          </section>
+        </div>
+      );
+    }
+
+    const queryClient = new ReactQuery.QueryClient({
+      defaultOptions: { queries: { refetchOnWindowFocus: false } },
+    });
+    function App() {
+      return (
+        <ReactQuery.QueryClientProvider client={queryClient}>
+          <Todos />
+          <ReactQueryDevtools.ReactQueryDevtools />
+        </ReactQuery.QueryClientProvider>
+      );
+    }
+
+    const root = document.querySelector("[data-js=root]");
+    ReactDOM.render(<App />, root);
+  </script>
+</body>
