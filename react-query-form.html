@@ -1,0 +1,273 @@
+<body>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+    * {
+      margin: 0;
+    }
+    html,
+    body {
+      height: 100%;
+    }
+    body {
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    input,
+    button,
+    textarea,
+    select {
+      font: inherit;
+    }
+    p,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      overflow-wrap: break-word;
+    }
+    h1 {
+      font-size: 1.5em;
+      margin-bottom: 8px;
+    }
+    h2 {
+      font-size: 1.25em;
+    }
+    input {
+      width: 100%;
+      min-height: 32px;
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+    }
+    .root {
+      height: 500px;
+      padding: 24px;
+      border: 8px ridge;
+      border-radius: 12px;
+    }
+    header {
+      margin-bottom: 24px;
+      padding-bottom: 24px;
+      border-bottom: 1px dashed;
+      display: flex;
+      gap: 24px;
+    }
+    form {
+      max-width: 200px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+  </style>
+
+  <script
+    crossorigin
+    src="https://unpkg.com/react@17/umd/react.development.js"
+  ></script>
+  <script
+    crossorigin
+    src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"
+  ></script>
+  <script src="https://unpkg.com/react-hook-form@7.26.1/dist/index.umd.js"></script>
+  <script src="https://unpkg.com/react-query/dist/react-query.production.min.js"></script>
+  <script src="https://unpkg.com/react-query/dist/react-query-devtools.production.min.js"></script>
+  <script src="https://unpkg.com/faker@5.5.3/dist/faker.min.js"></script>
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.0.0-beta.64/dist/themes/light.css"
+  />
+  <script
+    type="module"
+    src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.0.0-beta.64/dist/shoelace.js"
+  ></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <div data-js="root"></div>
+
+  <script type="text/babel">
+    const apiUrl = "https://620389084d21c200170b9e0f.mockapi.io/api";
+    function client(
+      endpoint,
+      { data, headers: customHeaders, ...customConfig } = {}
+    ) {
+      return fetch(`${apiUrl}/${endpoint}`, {
+        method: data ? "POST" : "GET",
+        body: data ? JSON.stringify(data) : undefined,
+        headers: {
+          "Content-Type": data ? "application/json" : undefined,
+          customHeaders,
+        },
+        ...customConfig,
+      }).then((res) => res.json());
+    }
+
+    function useTodos() {
+      return ReactQuery.useQuery(["todos"], () => client("todos"));
+    }
+
+    function useTodo(id) {
+      return ReactQuery.useQuery(["todo", id], () => client(`todos/${id}`));
+    }
+
+    function useMutateTodo() {
+      const queryClient = ReactQuery.useQueryClient();
+      return ReactQuery.useMutation(
+        (todo) => {
+          console.log({ todo });
+          client(`todos/${todo.id}`, { method: "PUT", data: todo });
+        },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries(["todos"]);
+          },
+        }
+      );
+    }
+
+    const FormGroup = (props) => {
+      return <div className="form-group" {...props} />;
+    };
+
+    const General = ({ todo, updateTodo }) => {
+      const {
+        watch,
+        register,
+        handleSubmit,
+        setValue,
+        formState: { errors },
+      } = ReactHookForm.useForm();
+
+      React.useEffect(
+        function updateTodoForm() {
+          if (todo) {
+            setValue("name", todo.name);
+          }
+        },
+        [todo]
+      );
+
+      watch("name", console.log);
+      return (
+        <form onSubmit={handleSubmit(console.log)}>
+          <FormGroup>
+            <label>Name</label>
+            <input
+              autoComplete="off"
+              {...register("name", {
+                required: "This is required.",
+                onChange: (e) => updateTodo({ name: e.target.value }),
+              })}
+            />
+            {errors.name && errors.name.message}
+          </FormGroup>
+        </form>
+      );
+    };
+
+    const Other = ({ todo, updateTodo }) => {
+      const {
+        register,
+        handleSubmit,
+        setValue,
+        formState: { errors },
+      } = ReactHookForm.useForm();
+
+      React.useEffect(
+        function updateTodoForm() {
+          if (todo) {
+            setValue("description", todo.description);
+          }
+        },
+        [todo]
+      );
+      return (
+        <form onSubmit={handleSubmit(updateTodo)}>
+          <FormGroup>
+            <label>Description</label>
+            <textarea
+              {...register("description", { required: "This is required." })}
+            />
+            {errors.description && errors.description.message}
+          </FormGroup>
+        </form>
+      );
+    };
+
+    const Todo = ({ id }) => {
+      const { data: todo } = useTodo(id);
+      const [todoForm, setTodoForm] = React.useState();
+
+      React.useEffect(
+        function updateTodoForm() {
+          if (todo) {
+            setTodoForm(todo);
+          }
+        },
+        [todo]
+      );
+
+      const updateTodo = (data) => {
+        setTodoForm((state) => ({ ...state, ...data }));
+      };
+
+      const mutate = useMutateTodo();
+      return (
+        <div className="root">
+          <header>
+            <button type="button" onClick={() => mutate.mutate(todoForm)}>
+              Save
+            </button>
+            <button type="button">Check</button>
+            <button type="button">Publish</button>
+          </header>
+          <sl-tab-group>
+            <sl-tab slot="nav" panel="general">
+              General
+            </sl-tab>
+            <sl-tab slot="nav" panel="other">
+              Other
+            </sl-tab>
+
+            <sl-tab-panel name="general">
+              <General id={id} todo={todoForm} updateTodo={updateTodo} />
+            </sl-tab-panel>
+            <sl-tab-panel name="other">
+              <Other id={id} todo={todoForm} updateTodo={updateTodo} />
+            </sl-tab-panel>
+          </sl-tab-group>
+        </div>
+      );
+    };
+
+    const queryClient = new ReactQuery.QueryClient({
+      defaultOptions: { queries: { refetchOnWindowFocus: false } },
+    });
+    function App() {
+      return (
+        <ReactQuery.QueryClientProvider client={queryClient}>
+          <Todo id={1} />
+          <ReactQueryDevtools.ReactQueryDevtools />
+        </ReactQuery.QueryClientProvider>
+      );
+    }
+
+    const root = document.querySelector("[data-js=root]");
+    ReactDOM.render(<App />, root);
+  </script>
+</body>

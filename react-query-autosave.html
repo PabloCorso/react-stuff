@@ -104,19 +104,13 @@
     const apiDelay = 1000;
     const mutationDelay = 300;
 
-    function debounceFn(func, wait, immediate) {
-      var timeout;
-      return function () {
-        var context = this,
-          args = arguments;
-        var later = function () {
-          timeout = null;
-          if (!immediate) func.apply(context, args);
-        };
-        var callNow = immediate && !timeout;
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-        if (callNow) func.apply(context, args);
+    function debounceFn(func, timeout = 300) {
+      let timer;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          func.apply(this, args);
+        }, timeout);
       };
     }
 
@@ -198,20 +192,28 @@
       );
     }
 
+    function useTodo() {
+      return ReactQuery.useQuery(["todo"], getTodos);
+    }
+
     function Todos() {
       // Access the client
       const queryClient = ReactQuery.useQueryClient();
 
       // Queries
-      const query = ReactQuery.useQuery("todo", getTodos);
+      const query = useTodo();
       const todo = query.data;
 
       // Mutations
       const mutation = ReactQuery.useMutation(postTodo, {
+        onError: (error) => {
+          console.error(error);
+          queryClient.invalidateQueries(["todo"]);
+        },
         onSuccess: (data) => {
           // Invalidate and refetch
-          // queryClient.invalidateQueries("todo");
-          queryClient.setQueryData("todo", data);
+          // queryClient.setQueryData(["todo"], data);
+          queryClient.invalidateQueries(["todo"]);
         },
       });
 
