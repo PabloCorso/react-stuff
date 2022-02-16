@@ -11,6 +11,7 @@
     html,
     body {
       height: 100%;
+      font-family: "Roboto", sans-serif;
     }
     body {
       line-height: 1.5;
@@ -19,6 +20,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      background-color: rgb(239, 239, 239);
     }
     input,
     button,
@@ -55,6 +57,7 @@
       padding: 24px;
       border: 8px ridge;
       border-radius: 12px;
+      background-color: white;
     }
     header {
       margin-bottom: 24px;
@@ -67,12 +70,17 @@
       max-width: 200px;
       display: flex;
       flex-direction: column;
-      gap: 32px;
+      gap: 24px;
     }
     .form-group {
       display: flex;
       flex-direction: column;
       gap: 4px;
+    }
+    .rules {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
   </style>
 
@@ -128,13 +136,10 @@
     function useMutateTodo() {
       const queryClient = ReactQuery.useQueryClient();
       return ReactQuery.useMutation(
-        (todo) => {
-          console.log({ todo });
-          client(`todos/${todo.id}`, { method: "PUT", data: todo });
-        },
+        (data) => client(`todos/${data.id}`, { method: "PUT", data }),
         {
           onSuccess: () => {
-            queryClient.invalidateQueries(["todos"]);
+            queryClient.invalidateQueries(["todo", 1]);
           },
         }
       );
@@ -144,113 +149,183 @@
       return <div className="form-group" {...props} />;
     };
 
-    const General = ({ todo, updateTodo }) => {
+    const General = () => {
       const {
-        watch,
         register,
         handleSubmit,
-        setValue,
         formState: { errors },
-      } = ReactHookForm.useForm();
-
-      React.useEffect(
-        function updateTodoForm() {
-          if (todo) {
-            setValue("name", todo.name);
-          }
-        },
-        [todo]
-      );
-
-      watch("name", console.log);
+      } = ReactHookForm.useFormContext();
       return (
         <form onSubmit={handleSubmit(console.log)}>
           <FormGroup>
             <label>Name</label>
             <input
               autoComplete="off"
-              {...register("name", {
-                required: "This is required.",
-                onChange: (e) => updateTodo({ name: e.target.value }),
-              })}
+              {...register("name", { required: "This is required." })}
             />
-            {errors.name && errors.name.message}
+            {errors?.name && errors.name.message}
           </FormGroup>
-        </form>
-      );
-    };
-
-    const Other = ({ todo, updateTodo }) => {
-      const {
-        register,
-        handleSubmit,
-        setValue,
-        formState: { errors },
-      } = ReactHookForm.useForm();
-
-      React.useEffect(
-        function updateTodoForm() {
-          if (todo) {
-            setValue("description", todo.description);
-          }
-        },
-        [todo]
-      );
-      return (
-        <form onSubmit={handleSubmit(updateTodo)}>
           <FormGroup>
             <label>Description</label>
             <textarea
               {...register("description", { required: "This is required." })}
             />
-            {errors.description && errors.description.message}
+            {errors?.description && errors.description.message}
           </FormGroup>
         </form>
       );
     };
 
+    const Rules = () => {
+      const { control, getValues, setValue } = ReactHookForm.useFormContext();
+
+      const handleUpdate = (rule) => {
+        const rules = getValues("rules");
+        if (rules.length === 0) {
+          setValue("rules", [rule]);
+        } else {
+          setValue("rules", [{ ...rules[0], ...rule }]);
+        }
+      };
+
+      const getRuleValue = (rules, index, attr) => {
+        if (!rules || rules.length === 0) {
+          return "";
+        }
+
+        return rules[0][attr] || "";
+      };
+      return (
+        <form>
+          <ReactHookForm.Controller
+            control={control}
+            name="rules"
+            render={({ field: { value, name }, fieldState, formState }) => (
+              <div className="rules">
+                <input
+                  value={getRuleValue(value, 0, "name")}
+                  onChange={(e) => {
+                    const rule = { name: e.target.value };
+                    handleUpdate(rule);
+                  }}
+                />
+                <input
+                  type="number"
+                  value={getRuleValue(value, 0, "value")}
+                  onChange={(e) => {
+                    const rule = { value: e.target.value };
+                    handleUpdate(rule);
+                  }}
+                />{" "}
+                %
+              </div>
+            )}
+          />
+        </form>
+      );
+    };
+
+    function equalTodos(todo1, todo2) {
+      return (
+        todo1 &&
+        todo2 &&
+        todo1.name === todo2.name &&
+        todo1.description === todo2.description &&
+        todo1.rules.length === 1 &&
+        todo2.rules.length === 1 &&
+        todo1.rules[0].name === todo2.rules[0].name &&
+        todo1.rules[0].value === todo2.rules[0].value
+      );
+    }
+
+    const GlobalActions = ({ todo }) => {
+      const mutate = useMutateTodo();
+
+      const handleUpdate = (data, action) => {
+        console.log(action, { data, todo });
+        mutate.mutate({ ...todo, ...data });
+      };
+
+      const formMethods = ReactHookForm.useFormContext();
+
+      const watch = ReactHookForm.useWatch();
+
+      const isSame = equalTodos(todo, watch);
+      const isEditing = todo && watch && !isSame;
+      return (
+        <>
+          <button
+            type="button"
+            disabled={!isEditing}
+            onClick={() => handleUpdate(formMethods.getValues(), "save")}
+          >
+            Save
+          </button>
+          <button type="button" onClick={() => formMethods.trigger()}>
+            Check
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              const isValid = await formMethods.trigger();
+              if (isValid) {
+                window.alert("✅ form published");
+              } else {
+                window.alert("❌ form is not valid");
+              }
+            }}
+          >
+            Publish
+          </button>
+        </>
+      );
+    };
+
     const Todo = ({ id }) => {
       const { data: todo } = useTodo(id);
-      const [todoForm, setTodoForm] = React.useState();
+
+      const formMethods = ReactHookForm.useForm(); // { id, name, description, rules: { name, value }[] }
+      // instead of const [todoForm, setTodoForm] = React.useState(todo);
 
       React.useEffect(
         function updateTodoForm() {
           if (todo) {
-            setTodoForm(todo);
+            formMethods.reset(todo);
           }
         },
         [todo]
       );
 
-      const updateTodo = (data) => {
-        setTodoForm((state) => ({ ...state, ...data }));
-      };
+      const isGeneralTabError =
+        formMethods.formState.errors.name &&
+        formMethods.formState.errors.description;
 
-      const mutate = useMutateTodo();
+      const isRulesTabError =
+        formMethods.formState.errors.rules &&
+        formMethods.formState.errors.rules.length > 0;
+
       return (
         <div className="root">
-          <header>
-            <button type="button" onClick={() => mutate.mutate(todoForm)}>
-              Save
-            </button>
-            <button type="button">Check</button>
-            <button type="button">Publish</button>
-          </header>
-          <sl-tab-group>
-            <sl-tab slot="nav" panel="general">
-              General
-            </sl-tab>
-            <sl-tab slot="nav" panel="other">
-              Other
-            </sl-tab>
+          <ReactHookForm.FormProvider {...formMethods}>
+            <header>
+              <GlobalActions todo={todo} />
+            </header>
+            <sl-tab-group>
+              <sl-tab slot="nav" panel="general">
+                General
+              </sl-tab>
+              <sl-tab slot="nav" panel="rules">
+                Rules
+              </sl-tab>
 
-            <sl-tab-panel name="general">
-              <General id={id} todo={todoForm} updateTodo={updateTodo} />
-            </sl-tab-panel>
-            <sl-tab-panel name="other">
-              <Other id={id} todo={todoForm} updateTodo={updateTodo} />
-            </sl-tab-panel>
-          </sl-tab-group>
+              <sl-tab-panel name="general">
+                <General />
+              </sl-tab-panel>
+              <sl-tab-panel name="rules">
+                <Rules />
+              </sl-tab-panel>
+            </sl-tab-group>
+          </ReactHookForm.FormProvider>
         </div>
       );
     };
